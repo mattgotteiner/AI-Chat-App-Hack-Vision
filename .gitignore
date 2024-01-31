@@ -1,4 +1,6 @@
 .azure
+app/backend/backend_env
+app/backend/static
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

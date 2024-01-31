@@ -62,6 +62,10 @@ param applicationInsightsName string = '' // Set in main.parameters.json
 
 param searchIndexName string = '' // Set in main.parameters.json
 
+param frontendAppServicePlanName string = '' // Set in main.parameters.json
+
+param frontendAppServicePlanSkuName string = '' // Set in main.parameters.json
+
 // Cannot use semantic search on free tier
 var actualSemanticSearchSkuName = searchServiceSkuName == 'free' ? 'disabled' : semanticSearchSkuName
 
@@ -118,7 +122,7 @@ module searchService 'core/search/search-services.bicep' = {
   }
 }
 
-// Create an App Service Plan to group applications under the same payment plan and SKU
+// Create an App Service Plan for the backend
 module appServicePlan './core/host/appserviceplan.bicep' = {
   name: 'appserviceplan'
   scope: apiServiceResourceGroup
@@ -204,6 +208,20 @@ module functionApp 'core/host/functions.bicep' = {
   }
 }
 
+// Create an App Service Plan for the frontend
+module frontendAppServicePlan './core/host/appserviceplan.bicep' = {
+  name: 'frontendappserviceplan'
+  scope: apiServiceResourceGroup
+  params: {
+    name: !empty(frontendAppServicePlanName) ? frontendAppServicePlanName : '${abbrs.webServerFarms}frontend-${resourceToken}'
+    location: empty(apiServiceLocation) ? location : apiServiceLocation
+    tags: tags
+    sku: {
+      name: frontendAppServicePlanSkuName
+    }
+  }
+}
+
 // The application frontend
 module frontend 'core/host/appservice.bicep' = {
   name: 'web'
@@ -212,7 +230,7 @@ module frontend 'core/host/appservice.bicep' = {
     name: !empty(frontendServiceName) ? frontendServiceName : '${abbrs.webSitesAppService}frontend-${resourceToken}'
     location: location
     tags: union(tags, { 'azd-service-name': 'frontend' })
-    appServicePlanId: appServicePlan.outputs.id
+    appServicePlanId: frontendAppServicePlan.outputs.id
     runtimeName: 'node'
     runtimeVersion: '20-lts'
     scmDoBuildDuringDeployment: true

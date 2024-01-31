@@ -44,6 +44,12 @@
     "appServicePlanName": {
       "value": "${AZURE_APP_SERVICE_PLAN}"
     },
+    "frontendAppServicePlanName": {
+      "value": "${AZURE_FRONTEND_APP_SERVICE_PLAN}"
+    },
+    "frontendAppServicePlanSkuName": {
+      "value": "${AZURE_FRONTEND_APP_SERVICE_SKU=B1}"
+    },
     "apiServiceName": {
       "value": "${AZURE_API_SERVICE}"
     },

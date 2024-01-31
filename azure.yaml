@@ -7,13 +7,13 @@ services:
     language: python
     host: function
   frontend:
-    project: ./frontend
-    language: typescript
-    host: appservices
+    project: ./app/frontend
+    language: ts
+    host: appservice
 hooks:
   prepackage:
     shell: pwsh
-    run:  cd ./frontend;npm install;npm run build
+    run:  cd ./app/frontend;npm install;npm run build
     interactive: true
     continueOnError: false
   postdeploy:
