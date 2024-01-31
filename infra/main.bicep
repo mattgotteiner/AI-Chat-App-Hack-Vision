@@ -54,9 +54,13 @@ param apiServiceLocation string = '' // Set in main.parameters.json
 
 param apiServiceResourceGroupName string = '' // Set in main.parameters.json
 
+param frontendServiceName string = '' // Set in main.parameters.json
+
 param logAnalyticsName string = '' // Set in main.parameters.json
 
 param applicationInsightsName string = '' // Set in main.parameters.json
+
+param searchIndexName string = '' // Set in main.parameters.json
 
 // Cannot use semantic search on free tier
 var actualSemanticSearchSkuName = searchServiceSkuName == 'free' ? 'disabled' : semanticSearchSkuName
@@ -177,7 +181,7 @@ module computerVision 'core/ai/cognitiveservices.bicep' = {
   }
 }
 
-// The application backend
+// The custom skill
 module functionApp 'core/host/functions.bicep' = {
   name: 'function'
   scope: apiServiceResourceGroup
@@ -197,6 +201,37 @@ module functionApp 'core/host/functions.bicep' = {
     runtimeName: 'python'
     runtimeVersion: '3.10'
     storageAccountName: storage.outputs.name
+  }
+}
+
+// The application frontend
+module frontend 'core/host/appservice.bicep' = {
+  name: 'web'
+  scope: apiServiceResourceGroup
+  params: {
+    name: !empty(frontendServiceName) ? frontendServiceName : '${abbrs.webSitesAppService}frontend-${resourceToken}'
+    location: location
+    tags: union(tags, { 'azd-service-name': 'frontend' })
+    appServicePlanId: appServicePlan.outputs.id
+    runtimeName: 'node'
+    runtimeVersion: '20-lts'
+    scmDoBuildDuringDeployment: true
+    managedIdentity: true
+    appSettings: {
+      AZURE_SEARCH_INDEX: searchIndexName
+      AZURE_SEARCH_SERVICE: searchService.outputs.name
+    }
+  }
+}
+
+// Frontend reader role to query index data
+module frontendReaderRoleUser 'core/security/role.bicep' = {
+  scope: searchServiceResourceGroup
+  name: 'frontend-readrole-user'
+  params: {
+    principalId: frontend.outputs.identityPrincipalId
+    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
+    principalType: 'ServicePrincipal'
   }
 }
 

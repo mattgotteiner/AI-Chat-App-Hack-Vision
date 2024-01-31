@@ -34,7 +34,6 @@ from azure.search.documents.indexes._generated.models import (
 import os
 
 function_name = "GetImageEmbedding"
-sample_index_name = "image-embedding-index"
 sample_container_name = "image-embedding-sample-data"
 sample_datasource_name = "image-embedding-datasource"
 sample_skillset_name = "image-embedding-skillset"
@@ -43,18 +42,19 @@ sample_indexer_name = "image-embedding-indexer"
 def main():
     credential = DefaultAzureCredential()
     search_service_name = os.environ["AZURE_SEARCH_SERVICE"]
+    search_index_name = os.environ["AZURE_SEARCH_INDEX"]
     search_url = f"https://{search_service_name}.search.windows.net"
     search_index_client = SearchIndexClient(endpoint=search_url, credential=credential, per_call_policies=[CustomVectorizerRewritePolicy()])
     search_indexer_client = SearchIndexerClient(endpoint=search_url, credential=credential)
 
     print("Uploading sample data...")
-    #upload_sample_data(credential)
+    upload_sample_data(credential)
 
     print("Getting function URL...")
     function_url = get_function_url(credential)
 
-    print(f"Create or update sample index {sample_index_name}...")
-    create_or_update_sample_index(search_index_client, function_url)
+    print(f"Create or update sample index {search_index_name}...")
+    create_or_update_sample_index(search_index_client, search_index_name, function_url)
 
     print(f"Create or update sample data source {sample_datasource_name}...")
     create_or_update_datasource(search_indexer_client, credential)
@@ -63,7 +63,7 @@ def main():
     create_or_update_skillset(search_indexer_client, function_url)
 
     print(f"Create or update sample indexer {sample_indexer_name}")
-    create_or_update_indexer(search_indexer_client)
+    create_or_update_indexer(search_indexer_client, search_index_name)
 
 def get_function_url(credential: DefaultAzureCredential) -> str:
     subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
@@ -102,7 +102,7 @@ def upload_sample_data(credential: DefaultAzureCredential):
                 print(f"Uploading {filename}...")
                 blob_client.upload_blob(data=f)
 
-def create_or_update_sample_index(search_index_client: SearchIndexClient, custom_vectorizer_url: str):
+def create_or_update_sample_index(search_index_client: SearchIndexClient, search_index_name: str, custom_vectorizer_url: str):
     # Create a search index  
     # Image vectors have 1024 dimensions
     fields = [  
@@ -132,7 +132,7 @@ def create_or_update_sample_index(search_index_client: SearchIndexClient, custom
     )
 
     # Create the search index with the semantic settings  
-    index = SearchIndex(name=sample_index_name, fields=fields, vector_search=vector_search)  
+    index = SearchIndex(name=search_index_name, fields=fields, vector_search=vector_search)  
     search_index_client.create_or_update_index(index)
 
 def create_or_update_datasource(search_indexer_client: SearchIndexerClient, credential: DefaultAzureCredential):
@@ -167,13 +167,13 @@ def create_or_update_skillset(search_indexer_client: SearchIndexerClient, custom
     )
     search_indexer_client.create_or_update_skillset(skillset)
 
-def create_or_update_indexer(search_indexer_client: SearchIndexerClient):
+def create_or_update_indexer(search_indexer_client: SearchIndexerClient, search_index_name: str):
     indexer = SearchIndexer(  
         name=sample_indexer_name,  
-        description="Indexer to index documents and generate embeddings",  
-        skillset_name=sample_skillset_name,  
-        target_index_name=sample_index_name,  
-        data_source_name=sample_datasource_name,  
+        description="Indexer to index documents and generate embeddings",
+        skillset_name=sample_skillset_name,
+        target_index_name=search_index_name,
+        data_source_name=sample_datasource_name,
         # Setup field mappings so the URL of the image is both the key and in a URL field
         # https://learn.microsoft.com/azure/search/search-indexer-field-mappings?tabs=rest#example-make-a-base-encoded-field-searchable
         field_mappings=[

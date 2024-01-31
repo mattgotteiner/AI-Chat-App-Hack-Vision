@@ -6,7 +6,16 @@ services:
     project: ./customskill
     language: python
     host: function
+  frontend:
+    project: ./frontend
+    language: typescript
+    host: appservices
 hooks:
+  prepackage:
+    shell: pwsh
+    run:  cd ./frontend;npm install;npm run build
+    interactive: true
+    continueOnError: false
   postdeploy:
     shell: pwsh
     run: ./scripts/setup_search_service.ps1

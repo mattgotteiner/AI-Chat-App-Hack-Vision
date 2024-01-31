@@ -20,6 +20,9 @@
     "searchServiceName": {
       "value": "${AZURE_SEARCH_SERVICE}"
     },
+    "searchIndexName": {
+      "value": "${AZURE_SEARCH_INDEX=image-embedding-index}"
+    },
     "searchServiceResourceGroupName": {
       "value": "${AZURE_SEARCH_SERVICE_RESOURCE_GROUP}"
     },
@@ -49,6 +52,9 @@
     },
     "apiServiceResourceGroupName": {
       "value": "${AZURE_API_SERVICE_RESOURCE_GROUP}"
+    },
+    "frontendServiceName": {
+      "value": "${AZURE_FRONTEND_SERVICE_NAME}"
     },
     "logAnalyticsName": {
       "value": "${AZURE_LOG_ANALYTICS}"
