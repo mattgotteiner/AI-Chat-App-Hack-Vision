@@ -151,17 +151,6 @@ module storageContribRoleUser 'core/security/role.bicep' = {
   }
 }
 
-// Storage blob reader role for indexer if using not free tier
-module storageReaderRoleSearchService 'core/security/role.bicep' = if (searchServiceSkuName != 'free') {
-  scope: storageResourceGroup
-  name: 'storage-readerrole-search'
-  params: {
-    principalId: searchService.outputs.principalId
-    roleDefinitionId: '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1'
-    principalType: 'ServicePrincipal'
-  }
-}
-
 // Monitor application with Azure Monitor
 module monitoring './core/monitor/monitoring.bicep' = {
   name: 'monitoring'
