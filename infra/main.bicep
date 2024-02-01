@@ -21,6 +21,8 @@ param searchServiceSkuName string // Set in main.parameters.json
 @description('Display name of Computer Vision API account')
 param computerVisionAccountName string = '' // Set in main.parameters.json
 
+param useGPT4V bool = false // Set in main.parameters.json
+
 @description('SKU for Computer Vision API')
 @allowed([
   'F0'
@@ -66,6 +68,24 @@ param frontendAppServicePlanName string = '' // Set in main.parameters.json
 
 param frontendAppServicePlanSkuName string = '' // Set in main.parameters.json
 
+param chatGpt4vDeploymentCapacity int = 10 // Set in main.parameters.json
+param gpt4vModelName string = 'gpt-4' // Set in main.parameters.json
+param gpt4vDeploymentName string = 'gpt-4v' // Set in main.parameters.json
+param gpt4vModelVersion string = 'vision-preview' // Set in main.parameters.json
+// https://learn.microsoft.com/en-us/azure/ai-services/openai/gpt-v-quickstart
+@description('Location for the OpenAI resource group')
+@allowed(['switzerlandnorth', 'westus', 'australiaeast', 'swedencentral'])
+@metadata({
+  azd: {
+    type: 'location'
+  }
+})
+param openAiResourceGroupLocation string // Set in main.parameters.json
+param openAiServiceName string = '' // Set in main.parameters.json
+param openAiResourceGroupName string = '' // Set in main.parameters.json
+
+param openAiSkuName string = 'S0'
+
 // Cannot use semantic search on free tier
 var actualSemanticSearchSkuName = searchServiceSkuName == 'free' ? 'disabled' : semanticSearchSkuName
 
@@ -101,6 +121,10 @@ resource storageResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' ex
 
 resource computerVisionResourceGroup 'Microsoft.Resources/resourceGroups@2022-09-01' existing = if (!empty(computerVisionResourceGroupName)) {
   name: !empty(computerVisionResourceGroupName) ? computerVisionResourceGroupName : resourceGroup.name
+}
+
+resource openAiResourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' existing = if (!empty(openAiResourceGroupName)) {
+  name: !empty(openAiResourceGroupName) ? openAiResourceGroupName : resourceGroup.name
 }
 
 module searchService 'core/search/search-services.bicep' = {
@@ -156,6 +180,18 @@ module storageContribRoleUser 'core/security/role.bicep' = {
   params: {
     principalId: principalId
     roleDefinitionId: 'ba92f5b4-2d11-453d-a403-e96b0029c9fe'
+    principalType: 'User'
+  }
+}
+
+// Cognitive Services user to use gpt4v
+
+module openAiRoleUser 'core/security/role.bicep' = if (useGPT4V) {
+  scope: openAiResourceGroup
+  name: 'openai-role-user'
+  params: {
+    principalId: principalId
+    roleDefinitionId: '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd'
     principalType: 'User'
   }
 }
@@ -255,6 +291,35 @@ module frontendReaderRoleUser 'core/security/role.bicep' = {
   }
 }
 
+// Optional GPT4V deployment on Azure for notebook deployments
+module openAi 'core/ai/cognitiveservices.bicep' = if (useGPT4V) {
+  name: 'openai'
+  scope: openAiResourceGroup
+  params: {
+    name: !empty(openAiServiceName) ? openAiServiceName : '${abbrs.cognitiveServicesAccounts}${resourceToken}'
+    location: openAiResourceGroupLocation
+    tags: tags
+    sku: {
+      name: openAiSkuName
+    }
+    kind: 'OpenAI'
+    deployments: [
+      {
+        name: gpt4vDeploymentName
+        model: {
+          format: 'OpenAI'
+          name: gpt4vModelName
+          version: gpt4vModelVersion
+        }
+        sku: {
+          name: 'Standard'
+          capacity: chatGpt4vDeploymentCapacity
+        }
+      }
+    ]
+  }
+}
+
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
 output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroup.name
@@ -277,3 +342,8 @@ output AZURE_APPINSIGHTS string = monitoring.outputs.applicationInsightsName
 output AZURE_COMPUTERVISION_ACCOUNT_URL string = computerVision.outputs.endpoint
 
 output AZURE_FUNCTION_URL string = functionApp.outputs.uri
+
+// Specific to Azure OpenAI
+output AZURE_OPENAI_SERVICE string = (useGPT4V) ? openAi.outputs.name : ''
+output AZURE_OPENAI_RESOURCE_GROUP string = (useGPT4V) ? openAiResourceGroup.name : ''
+output AZURE_OPENAI_GPT4V_DEPLOYMENT string = (useGPT4V) ? gpt4vDeploymentName : ''
