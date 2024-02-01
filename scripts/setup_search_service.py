@@ -92,7 +92,8 @@ def upload_sample_data(credential: DefaultAzureCredential):
     blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
     container_client = blob_service_client.get_container_client(sample_container_name)
     if not container_client.exists():
-        container_client.create_container()
+        container_client.create_container(public_access='blob')
+
     sample_data_directory_name = os.path.join("pictures", "nature")
     sample_data_directory = os.path.join(os.getcwd(), sample_data_directory_name)
     for filename in os.listdir(sample_data_directory):

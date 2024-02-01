@@ -145,6 +145,7 @@ module storage './core/storage/storage-account.bicep' = {
     name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
     location: empty(storageLocation) ? location : storageLocation
     tags: tags
+    allowBlobPublicAccess: true
   }
 }
 
@@ -231,8 +232,9 @@ module frontend 'core/host/appservice.bicep' = {
     location: location
     tags: union(tags, { 'azd-service-name': 'frontend' })
     appServicePlanId: frontendAppServicePlan.outputs.id
-    runtimeName: 'node'
-    runtimeVersion: '20-lts'
+    runtimeName: 'python'
+    runtimeVersion: '3.11'
+    appCommandLine: 'python3 -m gunicorn main:app'
     scmDoBuildDuringDeployment: true
     managedIdentity: true
     appSettings: {
@@ -258,6 +260,7 @@ output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroup.name
 output AZURE_SEARCH_SERVICE_LOCATION string = searchService.outputs.location
 output AZURE_SEARCH_SERVICE_SKU string = searchService.outputs.sku
+output AZURE_SEARCH_INDEX string = searchIndexName
 
 output AZURE_STORAGE_ACCOUNT_ID string = storage.outputs.id
 output AZURE_STORAGE_ACCOUNT_LOCATION string = storage.outputs.location
