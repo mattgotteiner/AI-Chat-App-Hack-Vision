@@ -17,7 +17,13 @@ hooks:
     interactive: true
     continueOnError: false
   postdeploy:
-    shell: pwsh
-    run: ./scripts/setup_search_service.ps1
-    interactive: true
-    continueOnError: false
+    windows:
+      shell: pwsh
+      run: python ./scripts/setup_search_service.py
+      interactive: true
+      continueOnError: false
+    posix:
+      shell: sh
+      run: python ./scripts/setup_search_service.py
+      interactive: true
+      continueOnError: false

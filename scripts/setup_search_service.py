@@ -1,5 +1,11 @@
+import subprocess
+import json
+from dotenv import load_dotenv
+import os
+import logging
+
 from azure.core.pipeline.policies import HTTPPolicy
-from azure.identity import DefaultAzureCredential
+from azure.identity import AzureDeveloperCliCredential
 from azure.mgmt.web import WebSiteManagementClient
 from azure.mgmt.storage import StorageManagementClient
 from azure.storage.blob import BlobServiceClient
@@ -21,17 +27,14 @@ from azure.search.documents.indexes.models import (
     InputFieldMappingEntry,
     OutputFieldMappingEntry,
     FieldMapping,
-    FieldMappingFunction,
-    SemanticConfiguration,
-    SemanticSettings,
-    PrioritizedFields,
-    SemanticField
+    FieldMappingFunction
 )
 # Workaround to use the preview SDK
 from azure.search.documents.indexes._generated.models import (
     SearchIndexerSkillset
 )
-import os
+
+logger = logging.getLogger(__name__)
 
 function_name = "GetImageEmbedding"
 sample_container_name = "image-embedding-sample-data"
@@ -39,8 +42,12 @@ sample_datasource_name = "image-embedding-datasource"
 sample_skillset_name = "image-embedding-skillset"
 sample_indexer_name = "image-embedding-indexer"
 
+
+
+
 def main():
-    credential = DefaultAzureCredential()
+    load_azd_env()
+    credential = AzureDeveloperCliCredential(tenant_id=os.environ["AZURE_TENANT_ID"])
     search_service_name = os.environ["AZURE_SEARCH_SERVICE"]
     search_index_name = os.environ["AZURE_SEARCH_INDEX"]
     search_url = f"https://{search_service_name}.search.windows.net"
@@ -65,7 +72,22 @@ def main():
     print(f"Create or update sample indexer {sample_indexer_name}")
     create_or_update_indexer(search_indexer_client, search_index_name)
 
-def get_function_url(credential: DefaultAzureCredential) -> str:
+def load_azd_env():
+    """Get path to current azd env file and load file using python-dotenv"""
+    result = subprocess.run("azd env list -o json", shell=True, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise Exception("Error loading azd env")
+    env_json = json.loads(result.stdout)
+    env_file_path = None
+    for entry in env_json:
+        if entry["IsDefault"]:
+            env_file_path = entry["DotEnvPath"]
+    if not env_file_path:
+        raise Exception("No default azd env file found")
+    logger.info(f"Loading azd env from {env_file_path}")
+    load_dotenv(env_file_path, override=True)
+
+def get_function_url(credential) -> str:
     subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
     client = WebSiteManagementClient(credential=credential, subscription_id=subscription_id)
 
@@ -77,7 +99,7 @@ def get_function_url(credential: DefaultAzureCredential) -> str:
     function_key = embedding_function_keys.additional_properties["default"]
     return f"{function_url_template}?code={function_key}"
 
-def get_blob_connection_string(credential: DefaultAzureCredential) -> str:
+def get_blob_connection_string(credential) -> str:
     subscription_id = os.environ["AZURE_SUBSCRIPTION_ID"]
     client = StorageManagementClient(credential=credential, subscription_id=subscription_id)
 
@@ -86,7 +108,7 @@ def get_blob_connection_string(credential: DefaultAzureCredential) -> str:
     storage_account_keys = client.storage_accounts.list_keys(resource_group, storage_account_name)
     return f"DefaultEndpointsProtocol=https;AccountName={storage_account_name};AccountKey={storage_account_keys.keys[0].value};EndpointSuffix=core.windows.net"
 
-def upload_sample_data(credential: DefaultAzureCredential):
+def upload_sample_data(credential):
     # Connect to Blob Storage
     account_url = os.environ["AZURE_STORAGE_ACCOUNT_BLOB_URL"]
     blob_service_client = BlobServiceClient(account_url=account_url, credential=credential)
@@ -136,7 +158,7 @@ def create_or_update_sample_index(search_index_client: SearchIndexClient, search
     index = SearchIndex(name=search_index_name, fields=fields, vector_search=vector_search)  
     search_index_client.create_or_update_index(index)
 
-def create_or_update_datasource(search_indexer_client: SearchIndexerClient, credential: DefaultAzureCredential):
+def create_or_update_datasource(search_indexer_client: SearchIndexerClient, credential):
     connection_string = get_blob_connection_string(credential)
     data_source = SearchIndexerDataSourceConnection(
         name=sample_datasource_name,

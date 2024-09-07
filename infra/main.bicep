@@ -185,7 +185,6 @@ module storageContribRoleUser 'core/security/role.bicep' = {
 }
 
 // Cognitive Services user to use gpt4v
-
 module openAiRoleUser 'core/security/role.bicep' = if (useGPT4V) {
   scope: openAiResourceGroup
   name: 'openai-role-user'
@@ -280,14 +279,25 @@ module frontend 'core/host/appservice.bicep' = {
   }
 }
 
-// Frontend reader role to query index data
-module frontendReaderRoleUser 'core/security/role.bicep' = {
+// Frontend reader role to query index data:
+module frontendSearchReaderRole 'core/security/role.bicep' = {
   scope: searchServiceResourceGroup
-  name: 'frontend-readrole-user'
+  name: 'frontend-search-reader-role'
   params: {
     principalId: frontend.outputs.identityPrincipalId
     roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
     principalType: 'ServicePrincipal'
+  }
+}
+
+// Required for local development:
+module userSearchReaderRole 'core/security/role.bicep' = {
+  scope: searchServiceResourceGroup
+  name: 'user-search-reader-role'
+  params: {
+    principalId: principalId
+    roleDefinitionId: '1407120a-92aa-4202-b7e9-c0e197c71c8f'
+    principalType: 'User'
   }
 }
 
@@ -321,6 +331,7 @@ module openAi 'core/ai/cognitiveservices.bicep' = if (useGPT4V) {
 }
 
 output AZURE_RESOURCE_GROUP string = resourceGroup.name
+output AZURE_TENANT_ID string = tenant().tenantId
 output AZURE_SEARCH_SERVICE string = searchService.outputs.name
 output AZURE_SEARCH_SERVICE_RESOURCE_GROUP string = searchServiceResourceGroup.name
 output AZURE_SEARCH_SERVICE_LOCATION string = searchService.outputs.location
